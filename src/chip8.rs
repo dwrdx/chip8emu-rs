@@ -1,6 +1,10 @@
 
 
 
+// this is the entry address of chip8, it means CPU will fetch the very first instruction that is
+// stored at this address
+const PC_START: u16 = 0x200;
+
 
 #[derive(Debug)]
 pub struct CPU {
@@ -11,12 +15,14 @@ pub struct CPU {
     DT: u8,        //  Delay Timer
     ST: u8,        //  Sound Timer
     stack: [u16; 16], //  Stack
+    memory: [u8; 4096], //  4k memory
 }
 
 
 
 
 impl CPU {
+    // create an instance of chip8 CPU
     pub fn new() -> CPU {
         CPU {
             V: [0; 16],
@@ -26,22 +32,20 @@ impl CPU {
             DT: 0,
             ST: 0,
             stack: [0; 16],
+            memory: [0; 4096],
         }
+    }
+
+    /// load_program loads binary to the memory of chip8
+    pub fn load_program(&mut self, program: Vec<u8>) {
+        
+
+
+    }
+
+
+    pub fn execute(&mut self) {
+        println!("I = {}", self.I);
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-pub fn hello() {
-    println!("hello");
-}
