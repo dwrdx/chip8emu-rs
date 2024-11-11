@@ -14,12 +14,8 @@ fn main() {
     let mut data = vec![];
     file.read_to_end(&mut data);
 
-    for byte in &data {
-        print!("{:02x}", byte); 
-    }
-
-
-
+    cpu.load_program(data);
+    cpu.run();
 
 
 
