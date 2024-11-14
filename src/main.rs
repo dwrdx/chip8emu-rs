@@ -1,6 +1,9 @@
 
-
+mod frontend;
 mod chip8;
+
+
+use frontend::screen;
 use chip8::CPU;
 use std::fs::File;
 use std::io::prelude::*;
@@ -15,7 +18,8 @@ fn main() {
     file.read_to_end(&mut data);
 
     cpu.load_program(data);
-    cpu.run();
+    screen().unwrap();
+    // cpu.run();
 
 
 

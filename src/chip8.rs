@@ -1,5 +1,3 @@
-
-
 use std::{fmt, usize};
 use rand::Rng;
 
@@ -20,7 +18,6 @@ pub struct CPU {
     stack: [u16; 16], //  Stack
     memory: [u8; 4096], //  4k memory
 }
-
 
 #[derive(Debug)]
 pub struct Operand {
@@ -70,8 +67,6 @@ trait InstructionSet {
     fn load_registers_Fx65(&mut self, value: u16);
 }
 
-
-
 impl Operand {
     pub fn new(instruciton: u16) -> Operand {
         Operand {
@@ -86,12 +81,6 @@ impl fmt::Display for Operand {
         write!(f, "OPERAND(CODE: {:01X}, VAL: {:02X})", self.op_code, self.value)
     }
 }
-
-
-
-
-
-
 
 impl CPU {
     // create an instance of chip8 CPU
@@ -129,7 +118,6 @@ impl CPU {
             self.execute(op);
         }
     }
-
 
     // fetch the operand from PC
     pub fn fetch(&mut self) -> Operand {
@@ -181,7 +169,20 @@ impl CPU {
             },
             0x0D => {
                 self.draw_sprite_Dxyn(operand.value);
-            }
+            },
+            0x0E => {
+                match operand.value & 0x00FF {
+                    0x9E => {
+                        self.skip_if_key_pressed_Ex9E(operand.value);
+                    },
+                    0xA1 => {
+                        self.skip_if_key_not_pressed_ExA1(operand.value);
+                    },
+                    _ => {
+                        panic!("Invalid operand!");
+                    }
+                }
+            },
             0x0F => {
                 let sub_op_code = operand.value & 0x00FF;
                 match sub_op_code {
@@ -190,6 +191,24 @@ impl CPU {
                     },
                     0x0A => {
                         self.wait_for_key_press_Fx0A(operand.value);
+                    },
+                    0x15 => {
+                        self.load_reg_to_delay_timer_Fx15(operand.value);
+                    }
+                    0x18 => {
+                        self.load_reg_to_sound_timer_Fx18(operand.value);
+                    }
+                    0x1E => {
+                        self.add_to_index_reg_Fx1E(operand.value);
+                    }
+                    0x29 => {
+                        self.set_index_reg_to_sprite_Fx29(operand.value);
+                    }
+                    0x33 => {
+                        self.store_binary_coded_decimal_Fx33(operand.value);
+                    }
+                    0x55 => {
+                        self.store_registers_Fx55(operand.value);
                     },
                     0x65 => {
                         self.load_registers_Fx65(operand.value);
@@ -221,8 +240,6 @@ impl InstructionSet for CPU {
     fn decrement_sp(&mut self) {
         self.SP += 1;
     }
-
-
 
     fn clear_display_00E0(&mut self) {
         // TODO: clear the display here
