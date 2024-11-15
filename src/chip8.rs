@@ -1,5 +1,9 @@
+
+
 use std::{fmt, usize};
 use rand::Rng;
+use crate::frontend::Screen;
+use crate::frontend::ScreenTrait;
 
 // this is the entry address of chip8, it means CPU will fetch the very first instruction that is
 // stored at this address
@@ -7,7 +11,7 @@ const PC_START: u16 = 0x200;
 const SP_START: u8  = 0x10;
 
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct CPU {
     V: [u8; 16],   //  Vx where x = 0..F`
     I: u16,        //  I to store memory address
@@ -17,9 +21,10 @@ pub struct CPU {
     ST: u8,        //  Sound Timer
     stack: [u16; 16], //  Stack
     memory: [u8; 4096], //  4k memory
+    screen: Box<dyn ScreenTrait>,
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct Operand {
     op_code: u8,
     value: u16,
@@ -84,7 +89,7 @@ impl fmt::Display for Operand {
 
 impl CPU {
     // create an instance of chip8 CPU
-    pub fn new() -> CPU {
+    pub fn new(screen: Box<dyn ScreenTrait>) -> CPU {
         CPU {
             V: [0; 16],
             I: 0,
@@ -94,6 +99,7 @@ impl CPU {
             ST: 0,
             stack: [0; 16],
             memory: [0; 4096],
+            screen: screen,
         }
     }
 
@@ -113,6 +119,7 @@ impl CPU {
 
     // run CPU
     pub fn run(&mut self) {
+        self.screen.display();
         loop {
             let op = self.fetch();
             self.execute(op);
@@ -397,6 +404,17 @@ impl InstructionSet for CPU {
 
     fn draw_sprite_Dxyn(&mut self, value: u16) {
         // TODO: display
+        // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+        // The interpreter reads n bytes from memory, starting at the address stored in I. 
+        // These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). 
+        // Sprites are XORed onto the existing screen. If this causes any pixels to be erased, 
+        // VF is set to 1, otherwise it is set to 0. If the sprite is positioned so part of 
+        // it is outside the coordinates of the display, it wraps around to the opposite 
+        // side of the screen. See instruction 8xy3 for more information on XOR, and 
+        // section 2.4, Display, for more information on the Chip-8 screen and sprites.
+        let x = ((value & 0x0F00) >> 8) as u8;
+        let y = ((value & 0x00F0) >> 4) as u8;
+        let n = ((value & 0x000F) >> 0) as u8;
 
         self.increment_pc();
     }
