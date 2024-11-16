@@ -8,6 +8,7 @@ use frontend::ScreenTrait;
 use chip8::CPU;
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::mpsc;
 
 
 fn main() {
@@ -17,13 +18,16 @@ fn main() {
     let mut data = vec![];
     file.read_to_end(&mut data);
 
-    let mut screen = Box::new(Screen::new("Hello Chip8"));
-    let mut cpu = CPU::new(screen);
+    let (tx, rx) = mpsc::channel();
 
-    cpu.load_program(data );
-    cpu.run();
+    let mut screen = Screen::new("Hello Chip8", rx);
+    let mut cpu = CPU::new(tx);
 
-
+    std::thread::spawn(move || {
+        cpu.load_program(data );
+        cpu.run();
+    });
+    screen.render();
 
 
     println!("\nEnd of Running!");

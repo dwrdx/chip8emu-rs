@@ -6,10 +6,13 @@ use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::rect::Point;
 use sdl2::render::Canvas;
+use sdl2::version::revision_number;
 use sdl2::video::Window;
 use sdl2::Sdl;
 use sdl2::keyboard::Keycode;
 use std::time::Duration;
+use std::sync::mpsc;
+use crate::chip8::Sprite;
 
 const WINDOW_WIDTH: u32 = 800;//128;
 const WINDOW_HEIGHT: u32 = 600;//64;
@@ -18,14 +21,16 @@ const WINDOW_HEIGHT: u32 = 600;//64;
 pub struct Screen {
     sdl_context: Sdl,
     canvas: Canvas<Window>,
+    rx: mpsc::Receiver<Sprite>,
 }
 
 
 pub trait ScreenTrait {
     fn clear(&mut self);
+    fn draw_sprite(&mut self, x: i32, y: i32, sprite: Vec<u8>);
     fn draw_point(&mut self, x: i32, y: i32);
     fn draw(&mut self, text : &str);
-    fn display(&mut self);
+    fn render(&mut self);
 }
 
 impl ScreenTrait for Screen {
@@ -52,6 +57,18 @@ impl ScreenTrait for Screen {
         self.canvas.present();
     }
 
+    fn draw_sprite(&mut self, x: i32, y: i32, sprite: Vec<u8>) {
+        for i in 0..sprite.len() {
+            let row = sprite[i];
+            for j in 0..8 {
+                if row & (0x80 >> j) != 0 {
+                    self.draw_point(x + j as i32, y + i as i32);
+                }
+            }
+
+        }
+    }
+
     fn draw(&mut self, text : &str) {
         let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
 
@@ -73,7 +90,7 @@ impl ScreenTrait for Screen {
         self.canvas.present();
     }
 
-    fn display(&mut self) {
+    fn render(&mut self) {
         let mut event_pump = self.sdl_context.event_pump().unwrap();
 
         'running: loop {
@@ -90,9 +107,15 @@ impl ScreenTrait for Screen {
                 }
             }
 
-            self.clear();
-            // self.draw("hello rust");
-            self.draw_point(400, 300);
+            let received = self.rx.recv().unwrap();
+            if received.x == 0 && received.y == 0  && received.data.len() == 0 {
+                self.clear();
+            } else {
+                // draw sprite
+                self.draw_sprite(received.x, received.y, received.data);
+                panic!("sdfsaf");
+            }
+            // self.draw_point(400, 300);
             std::thread::sleep(Duration::from_millis(100));
         }
     }
@@ -100,7 +123,7 @@ impl ScreenTrait for Screen {
 }
 
 impl Screen {
-    pub fn new(name: &str) -> Screen {
+    pub fn new(name: &str, receiver: mpsc::Receiver<Sprite>) -> Screen {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem
@@ -110,11 +133,12 @@ impl Screen {
             .build()
             .map_err(|e| e.to_string()).unwrap();
 
-        let mut canvas = window.into_canvas().build().map_err(|e| e.to_string()).unwrap();
+        let canvas = window.into_canvas().build().map_err(|e| e.to_string()).unwrap();
 
         Screen {
             sdl_context: sdl_context, 
             canvas: canvas,
+            rx: receiver,
         }
     }
 

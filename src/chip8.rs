@@ -4,11 +4,18 @@ use std::{fmt, usize};
 use rand::Rng;
 use crate::frontend::Screen;
 use crate::frontend::ScreenTrait;
+use std::sync::mpsc;
 
 // this is the entry address of chip8, it means CPU will fetch the very first instruction that is
 // stored at this address
 const PC_START: u16 = 0x200;
 const SP_START: u8  = 0x10;
+
+pub struct Sprite {
+    pub x: i32,
+    pub y: i32,
+    pub data: Vec<u8>,
+}
 
 
 // #[derive(Debug)]
@@ -21,7 +28,7 @@ pub struct CPU {
     ST: u8,        //  Sound Timer
     stack: [u16; 16], //  Stack
     memory: [u8; 4096], //  4k memory
-    screen: Box<dyn ScreenTrait>,
+    tx: mpsc::Sender<Sprite>,
 }
 
 // #[derive(Debug)]
@@ -89,7 +96,7 @@ impl fmt::Display for Operand {
 
 impl CPU {
     // create an instance of chip8 CPU
-    pub fn new(screen: Box<dyn ScreenTrait>) -> CPU {
+    pub fn new(sender: mpsc::Sender<Sprite>) -> CPU {
         CPU {
             V: [0; 16],
             I: 0,
@@ -99,7 +106,7 @@ impl CPU {
             ST: 0,
             stack: [0; 16],
             memory: [0; 4096],
-            screen: screen,
+            tx: sender,
         }
     }
 
@@ -119,7 +126,6 @@ impl CPU {
 
     // run CPU
     pub fn run(&mut self) {
-        self.screen.display();
         loop {
             let op = self.fetch();
             self.execute(op);
@@ -249,7 +255,12 @@ impl InstructionSet for CPU {
     }
 
     fn clear_display_00E0(&mut self) {
-        // TODO: clear the display here
+        let sprite = Sprite{
+            x: 0,
+            y: 0,
+            data: vec![],
+        };
+        self.tx.send(sprite).unwrap();
         self.increment_pc();
     }
 
@@ -412,20 +423,29 @@ impl InstructionSet for CPU {
         // it is outside the coordinates of the display, it wraps around to the opposite 
         // side of the screen. See instruction 8xy3 for more information on XOR, and 
         // section 2.4, Display, for more information on the Chip-8 screen and sprites.
-        let x = ((value & 0x0F00) >> 8) as u8;
-        let y = ((value & 0x00F0) >> 4) as u8;
-        let n = ((value & 0x000F) >> 0) as u8;
+        let _x = ((value & 0x0F00) >> 8) as u8;
+        let _y = ((value & 0x00F0) >> 4) as u8;
+        let _n = ((value & 0x000F) >> 0) as u8;
+
+
+
+
+
+
+
+
+
 
         self.increment_pc();
     }
 
-    fn skip_if_key_pressed_Ex9E(&mut self, value: u16) {
+    fn skip_if_key_pressed_Ex9E(&mut self, _value: u16) {
         // TODO: check keyboard
 
         self.increment_pc();
     }
 
-    fn skip_if_key_not_pressed_ExA1(&mut self, value: u16) {
+    fn skip_if_key_not_pressed_ExA1(&mut self, _value: u16) {
         // TODO: check keyboard
 
         self.increment_pc();
@@ -437,7 +457,7 @@ impl InstructionSet for CPU {
         self.increment_pc();
     }
 
-    fn wait_for_key_press_Fx0A(&mut self, value: u16) {
+    fn wait_for_key_press_Fx0A(&mut self, _value: u16) {
         // TODO: check keyboard
         self.increment_pc();
     }
