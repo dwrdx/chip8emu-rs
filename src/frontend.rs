@@ -110,12 +110,12 @@ impl ScreenTrait for Screen {
             let received = self.rx.recv().unwrap();
             if received.x == 0 && received.y == 0  && received.data.len() == 0 {
                 self.clear();
-            } else {
-                // draw sprite
+            } else if received.data.len() != 0 {
+                println!("x: {}, y: {}, data: {:?}", received.x, received.y, received.data);
                 self.draw_sprite(received.x, received.y, received.data);
-                panic!("sdfsaf");
             }
-            // self.draw_point(400, 300);
+            else {
+            }
             std::thread::sleep(Duration::from_millis(100));
         }
     }

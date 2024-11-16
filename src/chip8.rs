@@ -423,19 +423,16 @@ impl InstructionSet for CPU {
         // it is outside the coordinates of the display, it wraps around to the opposite 
         // side of the screen. See instruction 8xy3 for more information on XOR, and 
         // section 2.4, Display, for more information on the Chip-8 screen and sprites.
-        let _x = ((value & 0x0F00) >> 8) as u8;
-        let _y = ((value & 0x00F0) >> 4) as u8;
-        let _n = ((value & 0x000F) >> 0) as u8;
+        let x = ((value & 0x0F00) >> 8) as u8;
+        let y = ((value & 0x00F0) >> 4) as u8;
+        let n = ((value & 0x000F) >> 0) as u8;
 
-
-
-
-
-
-
-
-
-
+        let sprite = Sprite {
+            x: x as i32,
+            y: y as i32,
+            data: self.memory[self.I as usize..self.I as usize + n as usize].to_vec(),
+        };
+        self.tx.send(sprite).unwrap();
         self.increment_pc();
     }
 
