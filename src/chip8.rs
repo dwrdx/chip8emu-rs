@@ -11,10 +11,9 @@ use std::sync::mpsc;
 const PC_START: u16 = 0x200;
 const SP_START: u8  = 0x10;
 
-pub struct Sprite {
-    pub x: i32,
-    pub y: i32,
-    pub data: Vec<u8>,
+pub struct Protocol {
+    pub cmd: String,
+    pub data: [[bool; 32]; 64],
 }
 
 
@@ -28,7 +27,8 @@ pub struct CPU {
     ST: u8,        //  Sound Timer
     stack: [u16; 16], //  Stack
     memory: [u8; 4096], //  4k memory
-    tx: mpsc::Sender<Sprite>,
+    screen: [[bool; 32]; 64],
+    tx: mpsc::Sender<Protocol>,
 }
 
 // #[derive(Debug)]
@@ -96,7 +96,7 @@ impl fmt::Display for Operand {
 
 impl CPU {
     // create an instance of chip8 CPU
-    pub fn new(sender: mpsc::Sender<Sprite>) -> CPU {
+    pub fn new(sender: mpsc::Sender<Protocol>) -> CPU {
         CPU {
             V: [0; 16],
             I: 0,
@@ -106,6 +106,7 @@ impl CPU {
             ST: 0,
             stack: [0; 16],
             memory: [0; 4096],
+            screen: [[false; 32];  64],
             tx: sender,
         }
     }
@@ -142,7 +143,7 @@ impl CPU {
     pub fn execute(&mut self, operand: Operand) {
         let mut log = String::new();
         log.push_str(&format!("PC:{:04X}, {}, ", self.PC, operand));
-        println!("{}", log);
+        // println!("{}", log);
 
         match operand.op_code {
             0x00 => {
@@ -255,12 +256,11 @@ impl InstructionSet for CPU {
     }
 
     fn clear_display_00E0(&mut self) {
-        let sprite = Sprite{
-            x: 0,
-            y: 0,
-            data: vec![],
+        let cmd = Protocol {
+            cmd: String::from("CLS"),
+            data: [[false; 32]; 64],
         };
-        self.tx.send(sprite).unwrap();
+        self.tx.send(cmd).unwrap();
         self.increment_pc();
     }
 
@@ -414,7 +414,6 @@ impl InstructionSet for CPU {
     }
 
     fn draw_sprite_Dxyn(&mut self, value: u16) {
-        // TODO: display
         // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
         // The interpreter reads n bytes from memory, starting at the address stored in I. 
         // These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). 
@@ -427,12 +426,30 @@ impl InstructionSet for CPU {
         let y = ((value & 0x00F0) >> 4) as u8;
         let n = ((value & 0x000F) >> 0) as u8;
 
-        let sprite = Sprite {
-            x: x as i32,
-            y: y as i32,
-            data: self.memory[self.I as usize..self.I as usize + n as usize].to_vec(),
+        // let sprite = Sprite {
+        //     x: self.V[x as usize] as i32,
+        //     y: self.V[y as usize] as i32,
+        //     data: self.memory[self.I as usize..self.I as usize + n as usize].to_vec(),
+        // };
+
+
+        self.V[0xF] = 0;
+        for i in 0..n {
+            let row = self.memory[(self.I + i as u16) as usize];
+            for j in 0..8 {
+                self.screen[(x + i) as usize][(y+j) as usize] ^= ((row >> (7 - j)) & 1) == 1;
+                if !self.screen[(x + i) as usize][(y+j) as usize] {
+                    self.V[0xF] |= 1;
+                }
+            }
+        }
+
+        let cmd = Protocol {
+            cmd: String::from("DRAW"),
+            data: self.screen,
         };
-        self.tx.send(sprite).unwrap();
+
+        self.tx.send(cmd).unwrap();
         self.increment_pc();
     }
 
@@ -478,8 +495,8 @@ impl InstructionSet for CPU {
     }
 
     fn set_index_reg_to_sprite_Fx29(&mut self, value: u16) {
-        // TODO: display
-
+        let x = ((value & 0x0F00) >> 8) as u8;
+        self.I = self.V[x as usize] as u16;
         self.increment_pc();
     }
 
@@ -494,8 +511,12 @@ impl InstructionSet for CPU {
     }
 
     fn load_registers_Fx65(&mut self, value: u16) {
-        // TODO: fix me
-        self.increment_pc()
+        let x = ((value & 0x0F00) >> 8) as u8;
+        for i in 0..x+1 {
+            self.V[i as usize] = self.memory[self.I as usize + i as usize];
+        }
+        self.I += (x+1) as u16;
+        self.increment_pc();
     }
 
 }

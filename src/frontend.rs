@@ -12,7 +12,7 @@ use sdl2::Sdl;
 use sdl2::keyboard::Keycode;
 use std::time::Duration;
 use std::sync::mpsc;
-use crate::chip8::Sprite;
+use crate::chip8::Protocol;
 
 const WINDOW_WIDTH: u32 = 800;//128;
 const WINDOW_HEIGHT: u32 = 600;//64;
@@ -21,13 +21,13 @@ const WINDOW_HEIGHT: u32 = 600;//64;
 pub struct Screen {
     sdl_context: Sdl,
     canvas: Canvas<Window>,
-    rx: mpsc::Receiver<Sprite>,
+    rx: mpsc::Receiver<Protocol>,
 }
 
 
 pub trait ScreenTrait {
     fn clear(&mut self);
-    fn draw_sprite(&mut self, x: i32, y: i32, sprite: Vec<u8>);
+    fn draw_screen(&mut self, screen: [[bool; 32]; 64]);
     fn draw_point(&mut self, x: i32, y: i32);
     fn draw(&mut self, text : &str);
     fn render(&mut self);
@@ -45,7 +45,7 @@ impl ScreenTrait for Screen {
         self.canvas.set_draw_color(Color::RGB(255, 255, 255));
 
         let (w, h) = self.canvas.output_size().unwrap();
-        println!("w: {}, h: {}", w, h);
+        println!("x: {}, y: {}", x, y);
 
         let point = Point::new(x, y);
         
@@ -57,15 +57,13 @@ impl ScreenTrait for Screen {
         self.canvas.present();
     }
 
-    fn draw_sprite(&mut self, x: i32, y: i32, sprite: Vec<u8>) {
-        for i in 0..sprite.len() {
-            let row = sprite[i];
-            for j in 0..8 {
-                if row & (0x80 >> j) != 0 {
-                    self.draw_point(x + j as i32, y + i as i32);
+    fn draw_screen(&mut self, screen: [[bool; 32]; 64]) {
+        for x in 0..64 {
+            for y in 0..32 {
+                if screen[x][y] {
+                    self.draw_point(x as i32, y as i32);
                 }
             }
-
         }
     }
 
@@ -108,22 +106,21 @@ impl ScreenTrait for Screen {
             }
 
             let received = self.rx.recv().unwrap();
-            if received.x == 0 && received.y == 0  && received.data.len() == 0 {
+            if received.cmd == String::from("CLS") {
                 self.clear();
-            } else if received.data.len() != 0 {
-                println!("x: {}, y: {}, data: {:?}", received.x, received.y, received.data);
-                self.draw_sprite(received.x, received.y, received.data);
+            } else if received.cmd == String::from("DRAW") {
+                self.clear();
+                self.draw_screen(received.data);
             }
             else {
             }
-            std::thread::sleep(Duration::from_millis(100));
         }
     }
 
 }
 
 impl Screen {
-    pub fn new(name: &str, receiver: mpsc::Receiver<Sprite>) -> Screen {
+    pub fn new(name: &str, receiver: mpsc::Receiver<Protocol>) -> Screen {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem

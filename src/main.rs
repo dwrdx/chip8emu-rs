@@ -5,13 +5,13 @@ mod chip8;
 
 use frontend::Screen;
 use frontend::ScreenTrait;
-use chip8::{CPU, Sprite};
+use chip8::{CPU, Protocol};
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::mpsc;
 
 
-fn load_rom_and_spawn(filename: &str, tx:mpsc::Sender<Sprite>) {
+fn load_rom_and_spawn(filename: &str, tx:mpsc::Sender<Protocol>) {
     let mut cpu = CPU::new(tx);
     let mut file = File::open(filename).unwrap();
     let mut data = vec![];
